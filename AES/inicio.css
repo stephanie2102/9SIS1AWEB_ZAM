@@ -1,6 +1,6 @@
 body {
   font-family: Arial, sans-serif;
-  background-image: url('imagenes/kirklai-6Ptwy-nDnoE-unsplash.jpg');
+  background-image: url('imagenes/cifrado.jpeg');
   background-size: cover;
   background-position: center;
 
@@ -14,18 +14,18 @@ body {
 .container {
   max-width: 4000px;
   padding: 50px;
-  background-color: rgba(255, 255, 255, 0.342);
+  background-color: rgba(89, 47, 103, 0.342);
   border-radius: 10px;
 }
 
 h1 {
   text-align: center;
-  color: #000000;
+  color: #8b8282;
 }
 
 div {
   margin-bottom: 15px;
-  color: #ffffff;
+  color: #c9bbbb;
 }
 
 label {
@@ -41,7 +41,7 @@ input[type="text"] {
 
 button {
   padding: 5px 10px;
-  background-color: #301f7e;
+  background-color: #40a3e6;
   color: white;
   border: none;
   cursor: pointer;
