@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cifrado DES</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.2/rollups/aes.js"></script>
+    <style>
+        /* Estilos CSS */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-image: url('imagen/fondo.png');
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: rgba(32, 194, 29, 0.8);
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        label {
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-upload {
+            display: inline-block;
+            padding: 6px 12px;
+            background-color: #076014;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .file-upload:hover {
+            background-color: #0e9684;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #35ede1;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #messageText {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: left;
+        }
+
+        #imagePreview {
+            margin-top: 20px;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .interface-image {
+            max-width: 200px;
+            height: auto;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cifrado DES</h1>
+        <label for="messageFile">Cargar archivo de mensaje:</label>
+        <label class="file-upload" for="messageFile">Seleccionar archivo</label>
+        <input type="file" id="messageFile" accept=".txt">
+        <br>
+        <label for="encryptionKey">Clave (8 caracteres):</label>
+        <input type="text" id="encryptionKey" maxlength="8">
+        <br>
+        <button onclick="encrypt()">Cifrar</button>
+        <br>
+        <label for="encryptedFile">Cargar archivo cifrado:</label>
+        <label class="file-upload" for="encryptedFile">Seleccionar archivo</label>
+        <input type="file" id="encryptedFile" accept=".txt">
+        <br>
+        <label for="decryptionKey">Clave (8 caracteres):</label>
+        <input type="text" id="decryptionKey" maxlength="8">
+        <br>
+        <button onclick="decrypt()">Descifrar</button>
+
+        <div id="messageText"></div>
+        <img class="interface-image" src="gatito.jpg" alt="">
+    </div>
+
+    <script>
+        function encrypt() {
+            var messageFile = document.getElementById("messageFile").files[0];
+            var encryptionKey = document.getElementById("encryptionKey").value;
+
+            if (messageFile && encryptionKey.length === 8) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var message = e.target.result;
+                    var encryptedMessage = CryptoJS.AES.encrypt(message, encryptionKey);
+                    downloadFile("encrypted.txt", encryptedMessage.toString());
+                };
+                reader.readAsText(messageFile);
+                displayMessageText(messageFile);
+            } else {
+                alert("Por favor, seleccione un archivo y asegúrese de ingresar una clave de exactamente 8 caracteres.");
+            }
+        }
+
+        function decrypt() {
+            var encryptedFile = document.getElementById("encryptedFile").files[0];
+            var decryptionKey = document.getElementById("decryptionKey").value;
+
+            if (encryptedFile && decryptionKey.length === 8) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var encryptedMessage = e.target.result;
+                    var decryptedMessage = CryptoJS.AES.decrypt(encryptedMessage, decryptionKey);
+                    var decryptedText = decryptedMessage.toString(CryptoJS.enc.Utf8);
+                    downloadFile("decrypted.txt", decryptedText);
+                };
+                reader.readAsText(encryptedFile);
+                displayMessageText(encryptedFile);
+            } else {
+                alert("Por favor, seleccione un archivo cifrado y asegúrese de ingresar una clave de exactamente 8 caracteres.");
+            }
+        }
+
+        function downloadFile(filename, content) {
+            var element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        function displayMessageText(file) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var messageText = document.getElementById("messageText");
+                messageText.innerText = "Contenido del archivo: \n\n" + e.target.result;
+            };
+            reader.readAsText(file);
+        }
+
+        function previewImage(event) {
+            var imagePreview = document.getElementById("imagePreview");
+            imagePreview.src = URL.createObjectURL(event.target.files[0]);
+        }
+    </script>
+</body>
+</html>

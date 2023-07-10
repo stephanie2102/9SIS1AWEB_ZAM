@@ -5,13 +5,23 @@ function cifrarArchivo() {
 
   const reader = new FileReader();
   reader.onload = function (e) {
-      const contenido = e.target.result;
+    const contenido = e.target.result;
 
-      // Cifrar el contenido utilizando CryptoJS
-      const mensajeCifrado = CryptoJS.AES.encrypt(contenido, clave).toString();
+    // Cifrar el contenido utilizando CryptoJS
+    const mensajeCifrado = CryptoJS.AES.encrypt(contenido, clave).toString();
 
-      document.getElementById('mensajeCifrado').value = mensajeCifrado;
+    // Crear un enlace de descarga para el archivo cifrado
+    function downloadFile(filename, content) {
+      var element = document.createElement('a');
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+      element.setAttribute('download', filename);
+      element.style.display = 'none';
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+  }
   };
+
   reader.readAsText(archivo);
 }
 
@@ -23,5 +33,14 @@ function descifrarArchivo() {
   // Descifrar el mensaje utilizando CryptoJS
   const contenidoDescifrado = CryptoJS.AES.decrypt(mensajeCifrado, clave).toString(CryptoJS.enc.Utf8);
 
-  alert('Mensaje descifrado: ' + contenidoDescifrado);
+  // Crear un enlace de descarga para el archivo descifrado
+  const enlaceDescarga = document.createElement('a');
+  enlaceDescarga.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(contenidoDescifrado));
+  enlaceDescarga.setAttribute('download', 'archivo_descifrado.txt');
+  enlaceDescarga.style.display = 'none';
+  document.body.appendChild(enlaceDescarga);
+
+  // Simular un clic en el enlace de descarga para iniciar la descarga
+  enlaceDescarga.click();
+  document.body.removeChild(enlaceDescarga);
 }

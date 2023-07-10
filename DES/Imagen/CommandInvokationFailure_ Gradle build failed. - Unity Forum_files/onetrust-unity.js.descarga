@@ -1,0 +1,296 @@
+(function ($, window) {
+
+    'use strict';
+
+    window.OneTrustUnity = window.OneTrustUnity || {};
+
+    /**
+     * Site rules.
+     *
+     * @type {{functionalCategory: {}, targetingCategory: {}}}
+     */
+    OneTrustUnity.rules = {
+        'functionalCategory': {
+            'vimeo': {
+                'src': 'player.vimeo.com/video',
+                'tag': 'IFRAME'
+            },
+        },
+        'targetingCategory': {
+            'twitter': {
+                'src': 'platform.twitter.com',
+                'tag': 'SCRIPT'
+            },
+            'vidyard_script': {
+                'src': 'vidyard.com/embed',
+                'tag': 'SCRIPT'
+            },
+            'vidyard_iframe': {
+                'src': 'play.vidyard',
+                'tag': 'IFRAME'
+            },
+            'youtube_iframe': {
+                'src': 'youtube.com/embed',
+                'tag': 'IFRAME'
+            },
+            'youtube_nocookie': {
+                'src': 'youtube-nocookie.com',
+                'tag': 'IFRAME'
+            },
+            'unity_cdp': {
+                'src': 'https://store.unity.com/themes/contrib/unity_base/js/unity-cdp.js',
+                'tag': 'SCRIPT'
+            },
+            'dailymotion': {
+                'src': 'dailymotion.com',
+                'tag': 'IFRAME'
+            },
+            'gfycat': {
+                'src': 'gfycat.com/ifr/',
+                'tag': 'IFRAME'
+            },
+            'liveleak': {
+                'src': 'liveleak.com',
+                'tag': 'IFRAME'
+            },
+            'metacafe': {
+                'src': 'metacafe.com',
+                'tag': 'IFRAME'
+            },
+            'streamable': {
+                'src': 'streamable.com/s/',
+                'tag': 'IFRAME'
+            },
+            'sketchfab': {
+                'src': 'sketchfab.com/models/',
+                'tag': 'IFRAME'
+            }
+        }
+    };
+
+    /**
+     * Cookie categories as defined at OneTrust.
+     *
+     * @type {{functionalCategory: string, targetingCategory: string}}
+     */
+    OneTrustUnity.cookieCategories = {
+        functionalCategory: 'C0003',
+        targetingCategory: 'C0004'
+    };
+
+    /**
+     * Configuration defaults.
+     *
+     * @type {{targetingAllowed: boolean, activeGroups: string, isReady: boolean, functionalAllowed: boolean, isEU: boolean}}
+     */
+    OneTrustUnity.config = {
+        isReady: false,
+        isEU: true,
+        isDNT: (navigator.doNotTrack === '1'),
+        activeGroups: '',
+        functionalAllowed: false,
+        targetingAllowed: false
+    };
+
+    /**
+     * The text shown in the blocked content's overlay.
+     *
+     * @todo: Apply localization if available.
+     *
+     * @type {{messageText: string, buttonText: string}}
+     */
+    OneTrustUnity.blockedNodeOverlay = {
+        'messageText': 'This content is hosted by a third party provider that does not allow video views without acceptance of {cookieType}. Please set your cookie preferences for {cookieType} to yes if you wish to view videos from these providers.',
+        'buttonText': 'Cookie settings'
+    };
+
+    /**
+     * HTML templates for the content requiring consent.
+     *
+     * Until the visitor gives consent to the related cookie type, the content
+     * (node) would be hidden using these templates.
+     *
+     * @type {{functionalCategory: string, targetingCategory: string}}
+     */
+    OneTrustUnity.videoOverlay = {
+        'functionalCategory': '<div class="blocked-video__overlay"><div class="blocked-video__message">' + OneTrustUnity.blockedNodeOverlay.messageText.split('{cookieType}').join('Functional Cookies') + '</div><a class="btn btn-blue functionalCategory blocked-video__button">' + OneTrustUnity.blockedNodeOverlay.buttonText + '</a></div>',
+        'targetingCategory': '<div class="blocked-video__overlay"><div class="blocked-video__message">' + OneTrustUnity.blockedNodeOverlay.messageText.split('{cookieType}').join('Targeting Cookies') + '</div><a class="btn btn-blue targetingCategory blocked-video__button">' + OneTrustUnity.blockedNodeOverlay.buttonText + '</a></div>'
+    };
+
+    /**
+     * The callback function OneTrust geolocation triggers.
+     *
+     * @param options
+     */
+    window.geofeed = function (options) {
+        if (Object.prototype.hasOwnProperty.call(options, 'continent')) {
+            OneTrustUnity.config.isEU = options.continent.toString() === 'EU';
+            OneTrustUnity.config.isReady = true;
+            OneTrustUnity.config.activeGroups = (typeof OnetrustActiveGroups  !== 'undefined') ? OnetrustActiveGroups : '';
+            OneTrustUnity.config.functionalAllowed = (null !== OneTrustUnity.config.activeGroups.match(OneTrustUnity.cookieCategories.functionalCategory));
+            OneTrustUnity.config.targetingAllowed = !OneTrustUnity.config.activeGroups ? !OneTrustUnity.config.isDNT : (null !== OneTrustUnity.config.activeGroups.match(OneTrustUnity.cookieCategories.targetingCategory));
+        }
+
+        // This logic is also used in MutationObserver.
+        if (OneTrustUnity.config.isReady) {
+            // If consent is not given for Functional Cookies, block elements using them.
+            if (!OneTrustUnity.config.functionalAllowed) {
+                blockFunctionalNodes();
+            }
+            // If consent is not given for Targeting Cookies, block elements using them.
+            if (!OneTrustUnity.config.targetingAllowed) {
+                blockTargetingNodes();
+            }
+        }
+    };
+
+    /**
+     * Create an observer instance linked to the callback function.
+     *
+     * Only added node mutations are checked.
+     * Only SCRIPT, IFRAME and OBJECT tags are processed.
+     *
+     * @type {MutationObserver}
+     */
+    let observer = new MutationObserver(function(mutations) {
+        for (let i = 0; i < mutations.length; i++) {
+            for (let j = 0; j < mutations[i].addedNodes.length; j++) {
+                let node = mutations[i].addedNodes[j];
+                // The added node must be an element.
+                // And must be an element of SCRIPT, IFRAME, or OBJECT.
+                if (
+                    node.nodeType === Node.ELEMENT_NODE
+                    && (node.tagName === 'SCRIPT' || node.tagName === 'IFRAME' || node.tagName === 'OBJECT')
+                ) {
+                    // This logic is also used on Window load event.
+                    if (OneTrustUnity.config.isReady) {
+                        if (!OneTrustUnity.config.functionalAllowed) {
+                            blockNode(node, 'functionalCategory');
+                        }
+                        if (!OneTrustUnity.config.targetingAllowed) {
+                            blockNode(node, 'targetingCategory');
+                        }
+                    }
+                }
+            }
+        }
+    });
+    // Options for the observer.
+    const config = { attributes: true, childList: true, subtree: true };
+    // Start monitoring the HTML element for configured mutations.
+    observer.observe(document.documentElement, config);
+
+    /**
+     * Block nodes listed under functional cookies.
+     */
+    function blockFunctionalNodes() {
+        $('script, iframe, object').each(function () {
+            blockNode(this, 'functionalCategory');
+        });
+    }
+
+    /**
+     * Block nodes listed under targeting cookies.
+     */
+    function blockTargetingNodes() {
+        $('script, iframe, object').each(function () {
+            blockNode(this, 'targetingCategory');
+        });
+    }
+
+    /**
+     * Block the node.
+     *
+     * The node could be a SCRIPT tag, or an IFRAME, or even an OBJECT tag. This
+     * function processes the node
+     *
+     * Example configuration object for a node:
+     *
+     * 'unity_cdp': {
+     *     'src': 'https://store.unity.com/themes/contrib/unity_base/js/unity-cdp.js',
+     *     'tag': 'SCRIPT'
+     * }
+     *
+     * @param node
+     * @param category
+     */
+    function blockNode(node, category) {
+        let config = OneTrustUnity.rules[category];
+        let overlayMarkup = OneTrustUnity.videoOverlay[category];
+        let wrapper = '<div class="blocked-' + category + '"></div>';
+        let $node = $(node);
+
+        if (config) {
+            for (let [label, rule] of Object.entries(config)) {
+                let node_src = node.src;
+                if (node_src) {
+                    if (
+                        rule.hasOwnProperty('src') && node.src.match(rule.src)
+                        && rule.hasOwnProperty('tag') && node.tagName.match(rule.tag)
+                    ) {
+                        // Remove the source attribute for all nodes. Its value already cached in `node_src`.
+                        node.removeAttribute('src');
+                        // Block script by removing its source, and changing its type.
+                        if ('SCRIPT' === node.tagName) {
+                            $node.attr({
+                                'data-script-src': node_src,
+                                'type': 'text/plain'
+                            });
+                        }
+                        // Block iframes and replace them with overlay markup.
+                        else if ('IFRAME' === node.tagName) {
+                            if ($node.parent().hasClass('responsive-iframe')) {
+                                let $parentResponsive = $node.parents('.responsive-iframe');
+                                $parentResponsive.wrap(wrapper);
+                                $parentResponsive.attr('data-iframe-src', node_src);
+                                $parentResponsive.append(overlayMarkup);
+                            }
+                            else {
+                                let $parent = $node.parent();
+                                $node.wrap(wrapper);
+                                $parent.attr('data-iframe-src', node_src);
+                                $parent.append(overlayMarkup);
+                            }
+                            $node.remove();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    $(window)
+        .on('load', function() {
+            // OneTrust geolocation JSONP service.
+            // Calls window.geofeed() function with geo-data as an argument.
+            let jsonp = document.createElement('script');
+            jsonp.setAttribute('src', 'https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location/geofeed');
+            document.head.appendChild(jsonp);
+        });
+
+    $('html')
+        // Reload the page when these selectors are clicked.
+        .on('click', '#accept-recommended-btn-handler, #onetrust-accept-btn-handler, .ot-pc-refuse-all-handler, #onetrust-reject-all-handler, .save-preference-btn-handler.onetrust-close-btn-handler', function () {
+            window.location.reload();
+        })
+        // Open "Cookie Settings" modal window.
+        .on('click', '.blocked-video__button', function (e) {
+            // Prevent page refresh and propagation.
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Open the OneTrust Preference Center modal.
+            OneTrust.ToggleInfoDisplay();
+
+            // Activate the matching category tab in the modal window.
+            if ($(this).hasClass('targetingCategory')) {
+                // Tracking Cookies.
+                $('#onetrust-pc-sdk [aria-controls=ot-desc-id-C0004].category-menu-switch-handler, #onetrust-pc-sdk [aria-controls=ot-desc-id-BG5].category-menu-switch-handler').click();
+            }
+            else {
+                // Functional Cookies.
+                $('#onetrust-pc-sdk [aria-controls=ot-desc-id-C0003].category-menu-switch-handler').click();
+            }
+        });
+
+})(jQuery, window);
